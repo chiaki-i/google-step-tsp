@@ -30,6 +30,7 @@ def solve(cities):
         unvisited_cities.remove(next_city)
         solution.append(next_city)
         current_city = next_city
+        print(solution)
     return solution
 
 
