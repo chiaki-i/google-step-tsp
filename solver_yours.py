@@ -3,17 +3,16 @@
 import sys
 import math
 import copy
+import collections
 
-from adjacent import adjacent_matrix
-from common import read_input
+from adjacent import adjacent_matrix, distance
+from common import print_solution, read_input
  
 # 与えられたグラフが完全グラフだと思えばよい
 # グラフのコストとは、ここでは各都市間の距離
 # 隣接行列を使った解法の計算量はO(V^2)
 
-def prim_matrix(cities):
-    adj = adjacent_matrix(cities)
-
+def prim_matrix(adj):
     length = len(cities)
     low = [0] * length
     closest = [0] * length
@@ -81,7 +80,11 @@ def rec_simplify(structure, parents):
 def simplify_structure(connected):
     simple = copy.deepcopy(connected) # copied           
     result = rec_simplify(simple, [0])
-    print('simplified : ', end='')
+    print('simplified : ')
+    '''
+    for i in range(len(result)):
+        print(i, ':', result[i])
+    '''
     print(result)
     return result
 
@@ -98,9 +101,8 @@ def dfs(graph):
             stack = graph[current] + stack
     return visited
 
-def bfs(start, goal, lst):
+def bfs(start, goal, graph):
     q = [[start]]                       
-    answer = []
     path = []
     while not(len(q) == 0):        
         path = q.pop(0)                 
@@ -108,7 +110,7 @@ def bfs(start, goal, lst):
         if current == goal:
             break
         else:
-            for x in lst[current]:
+            for x in graph[current]:
                 if x not in path:
                     new_path = path[:] 
                     new_path.append(x) 
@@ -131,22 +133,124 @@ def euler_path(connected):
     for i in range(len(departing) - 1):
         city1 = departing[i]
         city2 = departing[i+1]
-        print('city1 :', city1, ', city2 :', city2)
         if directly_connected(city1, city2, connected):
             path.append(city1)
         else:
+            # print('city1 :', city1, ', city2 :', city2)
             returning = bfs(city1, city2, connected)
             returning = returning[:-1]
             path = path + returning
+    path.append(0)
     return path
 
+def reverse_path(connected):
+    path = euler_path(connected)
+    path.reverse()
+    visited = []
+    for i in path:
+        if i not in visited:
+            visited.append(i)
+    print(visited)
+    return visited
+
+def split_branches(connected):
+    print('============')
+    simple = simplify_structure(connected)
+    departing = dfs(simple) # 0 を append してない
+
+    last_node = None
+    last_branch = None
+    path = []
+    while departing:
+        branch = []
+        while departing:
+            city2 = departing[1]
+            city1 = departing.pop(0)
+            if directly_connected(city1, city2, connected):
+                branch.append(city1)
+                if len(departing) == 1: # if the current branch is the last one
+                    last_node = departing.pop(0)
+                    branch.append(last_node)
+            else:
+                branch.append(city1)
+                if len(departing) == 1: # len(remaining another branch) == 1
+                    last_branch = [departing.pop(0)]
+                break
+        path.append(branch)
+    if last_branch is not None:
+        path.append(last_branch)
+    print('branches :', path)
+    
+    return path
+
+def define_target(euler, connected):
+    cnt = collections.Counter(euler)
+    lengthy = cnt.most_common()
+    result = []
+    for item in lengthy:
+        if item[1] == 1:
+            continue
+        else:
+            result.append(item[0])
+    result.remove(0) # 0 はあとで消す
+    return result
+
+def between(city1, city2, adj):
+    dist = adj[city1][city2]
+    return dist
+
+def skip_target(path, target, adj):
+    checklist = []
+    for i in range(len(path)):
+        if path[i] == target:
+            dist = between(path[i-1], path[i+1], adj)
+            checklist.append((([path[i-1], path[i], path[i+1]], i), dist))
+    print('checklist for', target, checklist)
+    if len(checklist) < 2:
+        assert len(checklist) > 0
+        return path
+    else:
+        checklist = sorted(checklist, key=lambda x: x[1]) # 距離の小さい順
+        checklist.pop(0)
+        print('sorted :', checklist)
+        print()
+        # 後ろからpopしたい
+        checklist = sorted(checklist, key=lambda x: x[0][1], reverse=True)
+        for i in range(len(checklist)):
+            num = checklist[i][0][1] 
+            print(num)
+            path.pop(num)
+    return path
+
+def shortcut(connected, adj):
+    euler = euler_path(connected)
+    print('before shortcut :', euler)
+    targets = define_target(euler, connected)
+    print('targets :', targets)
+    for target in targets:
+        euler = skip_target(euler, target, adj)
+    while 0 in euler:
+        euler.remove(0)
+    euler.append(0)
+    print('shortcut :', euler)
+    return euler
 
 if __name__ == '__main__':
+    sys.setrecursionlimit(100000)
     assert len(sys.argv) > 1
-    mst = prim_matrix(read_input(sys.argv[1])) # (x座標, y座標)のリスト
-    print(mst)
+    cities = read_input(sys.argv[1])
+    adj = adjacent_matrix(cities)
+    mst = prim_matrix(adj)
     connected = mst_adjacent_list(mst)
     print('connected :', connected)
     euler = euler_path(connected)
     print('euler :', euler)
-    # print_solution(solution)
+
+    # input 1
+    path = reverse_path(connected)
+
+    split_branches(connected)
+
+    solution = shortcut(connected, adj)
+    print_solution(solution)
+    # print_solution(euler)
