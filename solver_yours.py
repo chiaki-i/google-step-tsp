@@ -13,7 +13,7 @@ from common import print_solution, read_input
 # 隣接行列を使った解法の計算量はO(V^2)
 
 def prim_matrix(adj):
-    length = len(cities)
+    length = len(adj)
     low = [0] * length
     closest = [0] * length
 
@@ -195,16 +195,16 @@ def define_target(euler, connected):
     result.remove(0) # 0 はあとで消す
     return result
 
-def between(city1, city2, adj):
-    dist = adj[city1][city2]
-    return dist
+def triangle(city1, city2, city3, adj):
+    distance = adj[city1][city2] + adj[city2][city3] - adj[city1][city3]
+    return distance
 
 def skip_target(path, target, adj):
     checklist = []
     for i in range(len(path)):
         if path[i] == target:
-            dist = between(path[i-1], path[i+1], adj)
-            checklist.append((([path[i-1], path[i], path[i+1]], i), dist))
+            diff = triangle(path[i-1], path[i], path[i+1], adj)
+            checklist.append((([path[i-1], path[i], path[i+1]], i), diff))
     print('checklist for', target, checklist)
     if len(checklist) < 2:
         assert len(checklist) > 0
@@ -235,22 +235,18 @@ def shortcut(connected, adj):
     print('shortcut :', euler)
     return euler
 
-if __name__ == '__main__':
+def solve(cities):
     sys.setrecursionlimit(100000)
-    assert len(sys.argv) > 1
-    cities = read_input(sys.argv[1])
     adj = adjacent_matrix(cities)
-    mst = prim_matrix(adj)
-    connected = mst_adjacent_list(mst)
-    print('connected :', connected)
+    minimum_spanning_tree = prim_matrix(adj)
+    connected = mst_adjacent_list(minimum_spanning_tree)
+    # print('connected :', connected)
     euler = euler_path(connected)
-    print('euler :', euler)
-
-    # input 1
-    path = reverse_path(connected)
-
-    split_branches(connected)
-
+    # print('euler :', euler)
     solution = shortcut(connected, adj)
+    return solution
+
+if __name__ == '__main__':
+    assert len(sys.argv) > 1
+    solution = solve(read_input(sys.argv[1]))
     print_solution(solution)
-    # print_solution(euler)
