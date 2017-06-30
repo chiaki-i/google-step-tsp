@@ -5,7 +5,7 @@ import math
 import copy
 import collections
 
-from adjacent import adjacent_matrix, distance
+from adjacent import adjacent_matrix
 from common import print_solution, read_input
  
 # 与えられたグラフが完全グラフだと思えばよい
@@ -78,7 +78,7 @@ def rec_simplify(structure, parents):
 # simplify the tree structure
 # arrows only from parents to children in a tree (no double arrows)
 def simplify_structure(connected):
-    simple = copy.deepcopy(connected) # copied           
+    simple = copy.deepcopy(connected)      
     result = rec_simplify(simple, [0])
     print('simplified : ')
     '''
@@ -153,8 +153,7 @@ def reverse_path(connected):
     print(visited)
     return visited
 
-def split_branches(connected):
-    print('============')
+def split_branches(connected): # unused...
     simple = simplify_structure(connected)
     departing = dfs(simple) # 0 を append してない
 
@@ -196,8 +195,8 @@ def define_target(euler, connected):
     return result
 
 def triangle(city1, city2, city3, adj):
-    distance = adj[city1][city2] + adj[city2][city3] - adj[city1][city3]
-    return distance
+    dist = adj[city1][city2] + adj[city2][city3] - adj[city1][city3]
+    return dist
 
 def skip_target(path, target, adj):
     checklist = []
@@ -205,20 +204,20 @@ def skip_target(path, target, adj):
         if path[i] == target:
             diff = triangle(path[i-1], path[i], path[i+1], adj)
             checklist.append((([path[i-1], path[i], path[i+1]], i), diff))
-    print('checklist for', target, checklist)
+    # print('checklist for', target, checklist)
     if len(checklist) < 2:
         assert len(checklist) > 0
         return path
     else:
         checklist = sorted(checklist, key=lambda x: x[1]) # 距離の小さい順
         checklist.pop(0)
-        print('sorted :', checklist)
-        print()
+        # print('sorted :', checklist)
+        # print()
         # 後ろからpopしたい
         checklist = sorted(checklist, key=lambda x: x[0][1], reverse=True)
         for i in range(len(checklist)):
             num = checklist[i][0][1] 
-            print(num)
+            # print(num)
             path.pop(num)
     return path
 
@@ -235,15 +234,63 @@ def shortcut(connected, adj):
     print('shortcut :', euler)
     return euler
 
+def two_opt(path, adj):
+    length = len(path)
+    while True:
+        count = 0
+        for i in range(length-2):
+            city1 = path[i]
+            city2 = path[i+1]
+            for j in range(i+2, length-1):
+                city3 = path[j]
+                city4 = path[j+1]
+                before = adj[city1][city2] + adj[city3][city4]
+                after  = adj[city1][city3] + adj[city2][city4]
+                if before > after:
+                    print('swap!', city1, city2, city3, city4)
+                    print('location :', i, i+1, j, j+1)
+                    new_path = path[i+1:j+1]        
+                    print('new_path :', new_path)
+                    path[i+1:j+1] = new_path[::-1]
+                    count += 1
+
+        if count == 0:
+            break
+    return path    
+
+
+def opt_2(size, path):
+    global distance_table
+    total = 0
+    while True:
+        count = 0
+        for i in xrange(size - 2):
+            i1 = i + 1
+            for j in xrange(i + 2, size):
+                if j == size - 1:
+                    j1 = 0
+                else:
+                    j1 = j + 1
+                if i != 0 or j1 != 0:
+                    l1 = distance_table[path[i]][path[i1]]
+                    l2 = distance_table[path[j]][path[j1]]
+                    l3 = distance_table[path[i]][path[j]]
+                    l4 = distance_table[path[i1]][path[j1]]
+                    if l1 + l2 > l3 + l4:
+                        # つなぎかえる
+                        new_path = path[i1:j+1]
+                        path[i1:j+1] = new_path[::-1]
+                        count += 1
+        total += count
+        if count == 0: break
+    return path, total
 def solve(cities):
     sys.setrecursionlimit(100000)
     adj = adjacent_matrix(cities)
     minimum_spanning_tree = prim_matrix(adj)
     connected = mst_adjacent_list(minimum_spanning_tree)
-    # print('connected :', connected)
-    euler = euler_path(connected)
-    # print('euler :', euler)
-    solution = shortcut(connected, adj)
+    path = shortcut(connected, adj)
+    solution = two_opt(path, adj)
     return solution
 
 if __name__ == '__main__':
