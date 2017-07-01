@@ -8,9 +8,8 @@ import collections
 from adjacent import adjacent_matrix
 from common import print_solution, read_input
  
-# 与えられたグラフが完全グラフだと思えばよい
-# グラフのコストとは、ここでは各都市間の距離
-# 隣接行列を使った解法の計算量はO(V^2)
+# the cost for one edge = distance between two cities
+# with adjacent matrix : O(V^2)
 
 def prim_matrix(adj):
     length = len(adj)
@@ -35,7 +34,6 @@ def prim_matrix(adj):
                 closest[j] = current
     return closest
 
-# 最小木の各頂点と直接連結している点を求める
 def mst_adjacent_list(closest):
     length = len(closest)
     connected = [] 
@@ -46,23 +44,12 @@ def mst_adjacent_list(closest):
     for i in range(length):
         connected[closest[i]].append(i)
 
-    for i in range(2): # starting from vertex 0.
+    for i in range(2): # to start from vertex 0.
         connected[0].remove(0)
     return connected
-
-# 奇数次数の頂点のみに関する最大重み完全マッチングを求める
-# 各辺の重みを負の数にすれば、最大重み完全マッチングを考えられる
-def matching(connected):
-    length = len(connected)
-    odd = []
-    for i in range(length):
-        if len(connected[i]) % 2 == 1:
-            odd.append((i, connected[i]))
-    print(odd) 
-
     
 def rec_simplify(structure, parents):
-    if parents: # if not empty
+    if parents:
         first = parents.pop(0)
         target = structure[first]
         parents = parents + target
@@ -76,16 +63,12 @@ def rec_simplify(structure, parents):
     return structure
     
 # simplify the tree structure
-# arrows only from parents to children in a tree (no double arrows)
+# edges only from parents to children in a tree (no double arrows)
 def simplify_structure(connected):
     simple = copy.deepcopy(connected)      
     result = rec_simplify(simple, [0])
-    print('simplified : ')
-    '''
-    for i in range(len(result)):
-        print(i, ':', result[i])
-    '''
-    print(result)
+    # print('simplified : ')
+    # print(result)
     return result
 
 def dfs(graph):
@@ -127,7 +110,7 @@ def euler_path(connected):
     simple = simplify_structure(connected)
     departing = dfs(simple)
     departing.append(0)
-    print('departing :', departing)
+    # print('departing :', departing)
     
     path = []
     for i in range(len(departing) - 1):
@@ -153,9 +136,9 @@ def reverse_path(connected):
     print(visited)
     return visited
 
-def split_branches(connected): # unused...
+def split_branches(connected): # unused function
     simple = simplify_structure(connected)
-    departing = dfs(simple) # 0 を append してない
+    departing = dfs(simple)
 
     last_node = None
     last_branch = None
@@ -167,19 +150,19 @@ def split_branches(connected): # unused...
             city1 = departing.pop(0)
             if directly_connected(city1, city2, connected):
                 branch.append(city1)
-                if len(departing) == 1: # if the current branch is the last one
+                if len(departing) == 1: # current branch is the last one
                     last_node = departing.pop(0)
                     branch.append(last_node)
             else:
                 branch.append(city1)
-                if len(departing) == 1: # len(remaining another branch) == 1
+                remaining_another_branch = departing
+                if len(remaining_another_branch) == 1:
                     last_branch = [departing.pop(0)]
                 break
         path.append(branch)
     if last_branch is not None:
         path.append(last_branch)
-    print('branches :', path)
-    
+    # print('branches :', path)
     return path
 
 def define_target(euler, connected):
@@ -191,33 +174,33 @@ def define_target(euler, connected):
             continue
         else:
             result.append(item[0])
-    result.remove(0) # 0 はあとで消す
+    result.remove(0) # 0 is both start & end. removed later.
     return result
 
 def triangle(city1, city2, city3, adj):
     dist = adj[city1][city2] + adj[city2][city3] - adj[city1][city3]
     return dist
 
+# if there is multiple edges that passes one city, choose the best edge(s) to
+# shorten the whole path.
 def skip_target(path, target, adj):
     checklist = []
     for i in range(len(path)):
         if path[i] == target:
             diff = triangle(path[i-1], path[i], path[i+1], adj)
             checklist.append((([path[i-1], path[i], path[i+1]], i), diff))
-    # print('checklist for', target, checklist)
     if len(checklist) < 2:
         assert len(checklist) > 0
         return path
     else:
-        checklist = sorted(checklist, key=lambda x: x[1]) # 距離の小さい順
-        checklist.pop(0)
-        # print('sorted :', checklist)
-        # print()
-        # 後ろからpopしたい
-        checklist = sorted(checklist, key=lambda x: x[0][1], reverse=True)
+        dist_difference = 1
+        current_place_in_path = 1
+        checklist = sorted(checklist, key=lambda x: x[dist_difference])
+        checklist.pop(0) # worst edge removed from checklist.
+        checklist = sorted(checklist, key=lambda x: x[0][current_place_in_path],
+                           reverse=True)
         for i in range(len(checklist)):
             num = checklist[i][0][1] 
-            # print(num)
             path.pop(num)
     return path
 
@@ -230,7 +213,7 @@ def shortcut(connected, adj):
         euler = skip_target(euler, target, adj)
     while 0 in euler:
         euler.remove(0)
-    euler.append(0)
+    euler.append(0) # 0 is the goal.
     print('shortcut :', euler)
     return euler
 
@@ -247,45 +230,15 @@ def two_opt(path, adj):
                 before = adj[city1][city2] + adj[city3][city4]
                 after  = adj[city1][city3] + adj[city2][city4]
                 if before > after:
-                    print('swap!', city1, city2, city3, city4)
-                    print('location :', i, i+1, j, j+1)
                     new_path = path[i+1:j+1]        
-                    print('new_path :', new_path)
                     path[i+1:j+1] = new_path[::-1]
                     count += 1
-
         if count == 0:
             break
     return path    
 
-
-def opt_2(size, path):
-    global distance_table
-    total = 0
-    while True:
-        count = 0
-        for i in xrange(size - 2):
-            i1 = i + 1
-            for j in xrange(i + 2, size):
-                if j == size - 1:
-                    j1 = 0
-                else:
-                    j1 = j + 1
-                if i != 0 or j1 != 0:
-                    l1 = distance_table[path[i]][path[i1]]
-                    l2 = distance_table[path[j]][path[j1]]
-                    l3 = distance_table[path[i]][path[j]]
-                    l4 = distance_table[path[i1]][path[j1]]
-                    if l1 + l2 > l3 + l4:
-                        # つなぎかえる
-                        new_path = path[i1:j+1]
-                        path[i1:j+1] = new_path[::-1]
-                        count += 1
-        total += count
-        if count == 0: break
-    return path, total
 def solve(cities):
-    sys.setrecursionlimit(100000)
+    sys.setrecursionlimit(100000) # for "rec_simplify" function in challenge 6.
     adj = adjacent_matrix(cities)
     minimum_spanning_tree = prim_matrix(adj)
     connected = mst_adjacent_list(minimum_spanning_tree)
